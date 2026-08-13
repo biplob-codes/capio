@@ -74,7 +74,7 @@ export default function App() {
         </p>
       )}
 
-      {info && <VideoInfoCard info={info} />}
+      {info && <VideoInfoCard info={info} url={url} />}
     </div>
   );
 }
