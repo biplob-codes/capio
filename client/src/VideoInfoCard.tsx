@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 
 interface VideoFormat {
   format_id: string;
@@ -20,7 +20,7 @@ export interface VideoInfo {
   audio: AudioFormat | null;
 }
 
-const DOWNLOAD_URL = "http://localhost:3000/download";
+const DOWNLOAD_URL = `${import.meta.env.VITE_API_URL}/download`;
 
 function formatDuration(seconds: number | null): string {
   if (seconds == null) return "--:--";
