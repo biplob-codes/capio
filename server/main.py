@@ -12,18 +12,28 @@ import yt_dlp
 
 app = FastAPI()
 
-# Comma-separated list of allowed origins, set via env var on Render.
-# Falls back to the local Vite dev server for local development.
-allowed_origins = os.environ.get("ALLOWED_ORIGINS", "http://localhost:5173").split(",")
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=allowed_origins,
+    allow_origins=["http://localhost:5173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
     expose_headers=["Content-Disposition"],
 )
+
+
+# --- Cookie setup ---------------------------------------------------------
+# Point this at the cookies.txt you exported from your browser.
+# Later, when you deploy this in Docker, you'll swap this for an env var
+# instead of a hardcoded path — but for now, local file is simplest.
+COOKIES_FILE = os.environ.get("YTDLP_COOKIES_PATH", "cookies.txt")
+
+
+def get_cookie_opts() -> dict:
+    if os.path.exists(COOKIES_FILE):
+        return {"cookiefile": COOKIES_FILE}
+    return {}
+# ---------------------------------------------------------------------------
 
 
 class VideoRequest(BaseModel):
@@ -43,10 +53,18 @@ def format_size(bytes_val):
     return f"{mb:.1f} MB"
 
 
-@app.get("/health")
-def health_check():
-    # Render (and any uptime checker) hits this to confirm the service is alive.
-    return {"status": "ok"}
+def get_size_bytes(f, duration):
+    # Prefer an exact reported size.
+    size = f.get("filesize") or f.get("filesize_approx")
+    if size:
+        return size
+    # Some clients only report bitrate (tbr, in kbps) with no filesize at
+    # all — estimate from bitrate * duration as a fallback so we're not
+    # left with a blank size just because that particular client omitted it.
+    tbr = f.get("tbr")
+    if tbr and duration:
+        return tbr * 1000 / 8 * duration
+    return None
 
 
 @app.post("/video-info")
@@ -54,6 +72,7 @@ def get_video_info(req: VideoRequest):
     ydl_opts = {
         "quiet": True,
         "skip_download": True,
+        **get_cookie_opts(),
     }
 
     try:
@@ -62,8 +81,12 @@ def get_video_info(req: VideoRequest):
     except yt_dlp.utils.DownloadError:
         raise HTTPException(status_code=400, detail="Couldn't fetch video info. Check the URL.")
 
-    video_formats = []
-    seen_resolutions = set()
+    duration = info.get("duration")
+
+    # yt-dlp can return the same resolution from multiple player clients —
+    # keep a dict keyed by height so we can upgrade to a better entry (one
+    # that actually has filesize data) if we see one after a worse one.
+    best_by_height = {}
 
     for f in info.get("formats", []):
         if f.get("ext") != "mp4":
@@ -72,16 +95,26 @@ def get_video_info(req: VideoRequest):
             continue
 
         height = f.get("height")
-        if not height or height in seen_resolutions:
+        if not height:
             continue
-        seen_resolutions.add(height)
 
-        video_formats.append({
-            "format_id": f["format_id"],
-            "resolution": f"{height}p",
-            "filesize": format_size(f.get("filesize") or f.get("filesize_approx")),
-        })
+        size_bytes = get_size_bytes(f, duration)
+        existing = best_by_height.get(height)
 
+        # Keep this one if there's nothing yet, or if this entry has a size
+        # and the current best doesn't.
+        if existing is None or (size_bytes and not existing["_size_bytes"]):
+            best_by_height[height] = {
+                "format_id": f["format_id"],
+                "resolution": f"{height}p",
+                "filesize": format_size(size_bytes),
+                "_size_bytes": size_bytes,
+            }
+
+    video_formats = [
+        {k: v for k, v in fmt.items() if k != "_size_bytes"}
+        for fmt in best_by_height.values()
+    ]
     video_formats.sort(key=lambda x: int(x["resolution"].replace("p", "")), reverse=True)
 
     audio_formats = [f for f in info.get("formats", []) if f.get("vcodec") == "none" and f.get("acodec") != "none"]
@@ -91,7 +124,7 @@ def get_video_info(req: VideoRequest):
     if best_audio:
         audio_info = {
             "format_id": best_audio["format_id"],
-            "filesize": format_size(best_audio.get("filesize") or best_audio.get("filesize_approx")),
+            "filesize": format_size(get_size_bytes(best_audio, duration)),
         }
 
     return {
@@ -129,6 +162,7 @@ def download_media(req: DownloadRequest):
         "format": format_str,
         "outtmpl": os.path.join(tmp_dir, "%(title)s.%(ext)s"),
         "restrictfilenames": True,  # sanitizes the title into a safe filename
+        **get_cookie_opts(),
     }
     if req.kind == "video":
         ydl_opts["merge_output_format"] = "mp4"
@@ -161,5 +195,4 @@ def download_media(req: DownloadRequest):
 
 if __name__ == "__main__":
     import uvicorn
-    port = int(os.environ.get("PORT", 3000))
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    uvicorn.run(app, host="0.0.0.0", port=3000)
