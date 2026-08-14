@@ -12,9 +12,13 @@ import yt_dlp
 
 app = FastAPI()
 
+# Comma-separated list of allowed origins, set via env var on Render.
+# Falls back to the local Vite dev server for local development.
+allowed_origins = os.environ.get("ALLOWED_ORIGINS", "http://localhost:5173").split(",")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -37,6 +41,12 @@ def format_size(bytes_val):
         return None
     mb = bytes_val / (1024 * 1024)
     return f"{mb:.1f} MB"
+
+
+@app.get("/health")
+def health_check():
+    # Render (and any uptime checker) hits this to confirm the service is alive.
+    return {"status": "ok"}
 
 
 @app.post("/video-info")
@@ -151,4 +161,5 @@ def download_media(req: DownloadRequest):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=3000)
+    port = int(os.environ.get("PORT", 3000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
