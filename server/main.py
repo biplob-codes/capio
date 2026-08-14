@@ -72,6 +72,7 @@ class DownloadRequest(BaseModel):
     url: str
     format_id: str
     kind: str  # "video" or "audio"
+    height: int | None = None  # optional resolution hint, used as a fallback if format_id is stale
 
 
 def format_size(bytes_val):
@@ -202,10 +203,21 @@ def download_media(req: DownloadRequest):
 
     tmp_dir = tempfile.mkdtemp(prefix="ytdlp_")
 
+    # Prefer the exact format_id the client picked, but fall back to a
+    # height-constrained "best available" selector if that specific format
+    # is no longer offered by YouTube by the time this request runs — the
+    # format list can shift between /video-info and /download.
     if req.kind == "video":
-        format_str = f"{req.format_id}+bestaudio/best"
+        if req.height:
+            format_str = (
+                f"{req.format_id}+bestaudio/best"
+                f"/bestvideo[height<={req.height}]+bestaudio/best"
+                f"/best[height<={req.height}]"
+            )
+        else:
+            format_str = f"{req.format_id}+bestaudio/best/best"
     else:
-        format_str = req.format_id
+        format_str = f"{req.format_id}/bestaudio/best"
 
     ydl_opts = {
         "quiet": True,
@@ -223,11 +235,16 @@ def download_media(req: DownloadRequest):
     except yt_dlp.utils.DownloadError as e:
         shutil.rmtree(tmp_dir, ignore_errors=True)
         status, reason = classify_ytdlp_error(e)
-        logger.warning("download failed for %s (%s): %s", req.url, req.format_id, reason)
+        logger.warning(
+            "download failed for %s (requested format_id=%s, height=%s, format_str=%s): %s",
+            req.url, req.format_id, req.height, format_str, reason,
+        )
         raise HTTPException(status_code=status, detail=reason)
     except Exception as e:
         shutil.rmtree(tmp_dir, ignore_errors=True)
-        logger.exception("Unexpected error downloading %s", req.url)
+        logger.exception(
+            "Unexpected error downloading %s (format_str=%s)", req.url, format_str
+        )
         raise HTTPException(status_code=500, detail=f"unexpected_error: {e}")
 
     produced = [f for f in os.listdir(tmp_dir) if not f.endswith((".part", ".ytdl"))]
