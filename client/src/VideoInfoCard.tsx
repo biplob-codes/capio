@@ -42,7 +42,7 @@ function DownloadIcon({ spinning }: { spinning?: boolean }) {
     return (
       <svg className="h-3.5 w-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
         <circle
-          className="opacity-25"
+          className="opacity-20"
           cx="12"
           cy="12"
           r="10"
@@ -126,63 +126,46 @@ export default function VideoInfoCard({
   const anyDownloading = downloadingId !== null;
 
   return (
-    <div className="w-full max-w-3xl mx-auto rounded-2xl border border-[#E7E5E0] bg-white shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_24px_-12px_rgba(0,0,0,0.08)] overflow-hidden">
-      {/* Thumbnail — fixed 16:9 ratio, scales fluidly with card width */}
-      <div className="relative w-full aspect-video bg-[#F1F0EB]">
-        {info.thumbnail ? (
-          <img
-            src={info.thumbnail}
-            alt={info.title}
-            className="w-full h-full object-cover"
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center text-[#A6A399] text-sm font-['JetBrains_Mono']">
-            no preview available
-          </div>
-        )}
-        <span className="absolute bottom-3 right-3 rounded-md bg-black/70 backdrop-blur-sm px-2 py-1 text-xs font-['JetBrains_Mono'] text-white tracking-wide">
-          {formatDuration(info.duration)}
-        </span>
-      </div>
-
-      {/* Details */}
-      <div className="p-6">
-        <h2 className="font-['Space_Grotesk'] text-xl text-[#1C1C1A] leading-snug">
-          {info.title}
-        </h2>
-        {info.uploader && (
-          <p className="mt-1.5 text-sm font-['Inter'] text-[#8A8779]">
-            {info.uploader}
-          </p>
-        )}
-
-        <div className="my-5 h-px w-full bg-[#EEEDE8]" />
-
-        <div className="space-y-4">
+    <div className="pointer-events-none fixed inset-x-4 bottom-4 z-10 flex flex-col items-start gap-3 sm:inset-x-8 sm:bottom-8">
+      {/* Download panel — minimal, semi-transparent, left-aligned */}
+      <div className="pointer-events-auto w-full max-w-md rounded-xl bg-black/20 backdrop-blur-sm">
+        <div className="no-scrollbar max-h-[38vh] overflow-y-auto p-3 space-y-3">
           {info.video_formats.length > 0 && (
             <div>
-              <p className="text-[11px] uppercase tracking-[0.12em] text-[#A6A399] font-['Inter'] font-medium mb-2">
+              <p className="mb-1.5 text-[10px] uppercase tracking-[0.12em] text-white/60 font-medium [text-shadow:0_1px_4px_rgba(0,0,0,0.8)]">
                 Video
               </p>
-              <div className="flex flex-wrap gap-2">
+              <div className="space-y-1">
                 {info.video_formats.map((f) => {
                   const isThisDownloading = downloadingId === f.format_id;
                   return (
-                    <button
+                    <div
                       key={f.format_id}
-                      type="button"
-                      onClick={() => handleDownload(f.format_id, "video")}
-                      disabled={anyDownloading}
-                      className="group inline-flex items-center gap-2 rounded-full border border-[#EAE8E2] bg-[#FAFAF8] px-3 py-1.5 text-sm font-['JetBrains_Mono'] text-[#1C1C1A] hover:border-[#3452C4]/50 hover:bg-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                      className="flex items-center justify-between gap-2 rounded-lg bg-black/10 px-2.5 py-1.5 transition-colors hover:bg-black/25"
                     >
-                      {f.resolution}
-                      {f.filesize && (
-                        <span className="text-[#A6A399]">{f.filesize}</span>
-                      )}
-                      <span className="text-[#A6A399] group-hover:text-[#3452C4] transition-colors">
+                      <div className="flex min-w-0 items-baseline gap-2">
+                        <span className="text-sm text-white [text-shadow:0_1px_4px_rgba(0,0,0,0.8)]">
+                          {f.resolution}
+                        </span>
+                        {f.filesize && (
+                          <span className="truncate text-xs text-white/70 [text-shadow:0_1px_4px_rgba(0,0,0,0.8)]">
+                            {f.filesize}
+                          </span>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleDownload(f.format_id, "video")}
+                        disabled={anyDownloading}
+                        className="relative shrink-0 inline-flex items-center gap-1.5 overflow-hidden rounded-md bg-white px-3 py-1.5 text-xs font-medium text-[#111] transition-colors hover:bg-[#3452C4] hover:text-white disabled:cursor-not-allowed disabled:opacity-30"
+                      >
                         <DownloadIcon spinning={isThisDownloading} />
-                      </span>
-                    </button>
+                        {isThisDownloading ? "Downloading" : "Download"}
+                        {isThisDownloading && (
+                          <span className="absolute inset-x-0 bottom-0 h-0.5 bg-[#3452C4]/70 animate-[loading-bar_1.1s_ease-in-out_infinite]" />
+                        )}
+                      </button>
+                    </div>
                   );
                 })}
               </div>
@@ -191,34 +174,58 @@ export default function VideoInfoCard({
 
           {info.audio && (
             <div>
-              <p className="text-[11px] uppercase tracking-[0.12em] text-[#A6A399] font-['Inter'] font-medium mb-2">
+              <p className="mb-1.5 text-[10px] uppercase tracking-[0.12em] text-white/60 font-medium [text-shadow:0_1px_4px_rgba(0,0,0,0.8)]">
                 Audio
               </p>
-              <button
-                type="button"
-                onClick={() => handleDownload(info.audio!.format_id, "audio")}
-                disabled={anyDownloading}
-                className="group inline-flex items-center gap-2 rounded-full border border-[#EAE8E2] bg-[#FAFAF8] px-3 py-1.5 text-sm font-['JetBrains_Mono'] text-[#1C1C1A] hover:border-[#3452C4]/50 hover:bg-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                audio only
-                {info.audio.filesize && (
-                  <span className="text-[#A6A399]">{info.audio.filesize}</span>
-                )}
-                <span className="text-[#A6A399] group-hover:text-[#3452C4] transition-colors">
+              <div className="flex items-center justify-between gap-2 rounded-lg bg-black/10 px-2.5 py-1.5 transition-colors hover:bg-black/25">
+                <div className="flex min-w-0 items-baseline gap-2">
+                  <span className="text-sm text-white [text-shadow:0_1px_4px_rgba(0,0,0,0.8)]">
+                    Audio only
+                  </span>
+                  {info.audio.filesize && (
+                    <span className="truncate text-xs text-white/70 [text-shadow:0_1px_4px_rgba(0,0,0,0.8)]">
+                      {info.audio.filesize}
+                    </span>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleDownload(info.audio!.format_id, "audio")}
+                  disabled={anyDownloading}
+                  className="relative shrink-0 inline-flex items-center gap-1.5 overflow-hidden rounded-md bg-white px-3 py-1.5 text-xs font-medium text-[#111] transition-colors hover:bg-[#3452C4] hover:text-white disabled:cursor-not-allowed disabled:opacity-30"
+                >
                   <DownloadIcon
                     spinning={downloadingId === info.audio.format_id}
                   />
-                </span>
-              </button>
+                  {downloadingId === info.audio.format_id
+                    ? "Downloading"
+                    : "Download"}
+                  {downloadingId === info.audio.format_id && (
+                    <span className="absolute inset-x-0 bottom-0 h-0.5 bg-[#3452C4]/70 animate-[loading-bar_1.1s_ease-in-out_infinite]" />
+                  )}
+                </button>
+              </div>
             </div>
           )}
         </div>
 
         {downloadError && (
-          <p className="mt-4 text-sm font-['Inter'] text-[#C4342F]">
+          <p className="px-3 pb-2 text-xs text-[#FF8A80] [text-shadow:0_1px_4px_rgba(0,0,0,0.8)]">
             {downloadError}
           </p>
         )}
+      </div>
+
+      {/* Title + duration — no background at all, just text-shadow for legibility */}
+      <div className="max-w-md">
+        <h1 className="text-base font-semibold leading-snug text-white [text-shadow:0_2px_10px_rgba(0,0,0,0.9)] sm:text-lg">
+          {info.title}
+        </h1>
+        <div className="mt-1 flex items-center gap-2 text-xs text-white/80 [text-shadow:0_1px_6px_rgba(0,0,0,0.9)]">
+          {info.uploader && <span>{info.uploader}</span>}
+          {info.uploader && <span>•</span>}
+          <span>{formatDuration(info.duration)}</span>
+        </div>
       </div>
     </div>
   );
