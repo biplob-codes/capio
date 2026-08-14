@@ -104,7 +104,7 @@ export default function App() {
           onSubmit={handleSubmit}
           className="w-full shrink-0 px-4 pt-4 sm:px-6"
         >
-          <div className="mx-auto flex w-full max-w-lg items-center gap-2 rounded-lg bg-black/45 p-1 ring-1 ring-white/15 backdrop-blur-md">
+          <div className="mx-auto flex w-full max-w-lg items-center gap-2 rounded-lg  p-1 ring-1 ring-white/10 ">
             <input
               type="text"
               value={url}
@@ -115,7 +115,7 @@ export default function App() {
             <button
               type="submit"
               disabled={loading || !url.trim()}
-              className="inline-flex items-center gap-1.5 rounded-md bg-white px-3.5 py-2 text-sm font-medium text-[#111] transition-colors hover:bg-[#3452C4] hover:text-white disabled:cursor-not-allowed disabled:opacity-30 cursor-pointer"
+              className="inline-flex items-center gap-1.5 rounded-md bg-white/90 px-3.5 py-2 text-sm font-medium text-[#111] transition-colors hover:bg-[#3452C4] hover:text-white disabled:cursor-not-allowed disabled:opacity-30 cursor-pointer"
             >
               {loading && <FetchSpinner />}
               {loading ? "Fetching" : "Fetch"}
@@ -146,7 +146,7 @@ export default function App() {
 
           {!loading && !info && (
             <div className="flex flex-1 items-center justify-center">
-              <p className="text-sm text-white/40">
+              <p className="text-2xl text-white/40">
                 Paste a link above to fetch download options
               </p>
             </div>

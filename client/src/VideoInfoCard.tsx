@@ -128,7 +128,7 @@ export default function VideoInfoCard({
   return (
     <div className="pointer-events-none fixed inset-x-4 bottom-4 z-10 flex flex-col items-start gap-3 sm:inset-x-8 sm:bottom-8">
       {/* Download panel — minimal, semi-transparent, left-aligned */}
-      <div className="pointer-events-auto w-full max-w-md rounded-xl bg-black/20 backdrop-blur-sm">
+      <div className="pointer-events-auto w-full max-w-md rounded-xl">
         <div className="no-scrollbar max-h-[38vh] overflow-y-auto p-3 space-y-3">
           {info.video_formats.length > 0 && (
             <div>
