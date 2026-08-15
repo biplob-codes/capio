@@ -18,21 +18,16 @@ logger = logging.getLogger("capio")
 app = FastAPI()
 
 # --- CORS ------------------------------------------------------------------
-# Comma-separated list so you can add your Vercel domain in Render's env
-# vars later without touching code, e.g.:
-# ALLOWED_ORIGINS=http://localhost:5173,https://capio.vercel.app
-raw_origins = os.environ.get("ALLOWED_ORIGINS", "http://localhost:5173")
-allowed_origins = [o.strip() for o in raw_origins.split(",") if o.strip()]
-
+# Wide open — local personal tool, no auth/cookies involved, not worth
+# gatekeeping.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=allowed_origins,
-    allow_credentials=True,
+    allow_origins=["*"],
     allow_methods=["*"],
     allow_headers=["*"],
     expose_headers=["Content-Disposition"],
 )
-
+# -----------------------------------------------------------------------------
 
 # --- Cookie setup ------------------------------------------------------------
 # The mounted/secret cookies file is read-only, but yt-dlp writes updated
